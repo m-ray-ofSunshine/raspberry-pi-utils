@@ -18,6 +18,3 @@ services:
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu/dists/noble/stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null

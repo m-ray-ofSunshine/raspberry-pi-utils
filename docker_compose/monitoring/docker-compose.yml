@@ -1,76 +1,136 @@
+version: "3.9"
+
 services:
+
+  # -------------------------
+  # Prometheus - metrics collection
+  # -------------------------
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "9090:9090"    # Prometheus web UI
     volumes:
-      - prometheus_data:/etc/prometheus
-    configs:
-      - source: prometheus_config
-        target: /etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus                # Persistent storage for metrics
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro  # Config file for scrape targets
     networks:
       - monitoring
 
+  # -------------------------
+  # Node Exporter - exposes host machine metrics
+  # -------------------------
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
     restart: unless-stopped
+    pid: "host"        # Access host-level stats like CPU and memory
     ports:
-      - "9100:9100"
-    pid: "host"
+      - "9100:9100"    # Node Exporter web endpoint
     networks:
       - monitoring
 
+  # -------------------------
+  # cAdvisor - container-level monitoring
+  # -------------------------
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
     restart: unless-stopped
     ports:
-      - "8181:8080"
+      - "8181:8080"   # cAdvisor web UI
     volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk:/dev/disk:ro
+      - /:/rootfs:ro                  # Read-only root filesystem
+      - /var/run:/var/run:rw          # Access Docker runtime info
+      - /sys:/sys:ro                  # System metrics
+      - /var/lib/docker/:/var/lib/docker:ro  # Docker container stats
+      - /dev/disk:/dev/disk:ro        # Disk metrics
     networks:
       - monitoring
 
+  # -------------------------
+  # Grafana - visualization dashboard
+  # -------------------------
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
+    ports:
+      - "4000:3000"  # Grafana web UI
+    environment:
+      - GF_SECURITY_ADMIN_USER=${grafana_admin}         # Admin username from .env
+      - GF_SECURITY_ADMIN_PASSWORD=${grafana_password}  # Admin password from .env
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel      # Example plugin
+    volumes:
+      - grafana_data:/var/lib/grafana                   # Persist dashboards & settings
     networks:
       - monitoring
-    environment:
-      - GF_SECURITY_ADMIN_USER=${grafana_admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${grafana_password}  #change the password
-      - GF_INSTALL_PLUGINS=
+
+  # -------------------------
+  # Alertmanager - Prometheus alerts
+  # -------------------------
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
     ports:
-      - '3000:3000'
+      - "9093:9093"  # Alertmanager UI
     volumes:
-      - grafana_data:/var/lib/grafana
-      
+      - alertmanager_data:/alertmanager
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro  # Alerting config
+    networks:
+      - monitoring
+
+# -------------------------
+# Networks - isolated monitoring network
+# -------------------------
 networks:
   monitoring:
- 
+
+# -------------------------
+# Volumes - persist data
+# -------------------------
 volumes:
-  grafana_data:
   prometheus_data:
+  grafana_data:
+  alertmanager_data:
 
-configs:
-  prometheus_config:
-    content: |
-      global:
-        scrape_interval: 15s
+# -------------------------
+# Example Prometheus Config (prometheus.yml)
+# Save in the same folder as docker-compose.yml
+# -------------------------
+# global:
+#   scrape_interval: 15s  # How often to collect metrics
+#
+# scrape_configs:
+#   - job_name: 'node_exporter'
+#     static_configs:
+#       - targets: ['node-exporter:9100']
+#
+#   - job_name: 'docker'
+#     static_configs:
+#       - targets: ['cadvisor:8080']
+#
+#   - job_name: 'prometheus'
+#     static_configs:
+#       - targets: ['prometheus:9090']
 
-      scrape_configs:
-        - job_name: 'node_exporter'
-          static_configs:
-            - targets: ['node-exporter:9100']
-
-        - job_name: 'docker'
-          static_configs:
-            - targets: ['cadvisor:8080']
+# -------------------------
+# Example Alertmanager Config (alertmanager.yml)
+# Save in the same folder as docker-compose.yml
+# -------------------------
+# global:
+#   resolve_timeout: 5m
+#
+# route:
+#   receiver: 'email-notifications'
+#
+# receivers:
+#   - name: 'email-notifications'
+#     email_configs:
+#       - to: 'you@example.com'
+#         from: 'alertmanager@example.com'
+#         smarthost: 'smtp.example.com:587'
+#         auth_username: 'smtp-user'
+#         auth_identity: 'smtp-user'
+#         auth_password: 'smtp-pass'

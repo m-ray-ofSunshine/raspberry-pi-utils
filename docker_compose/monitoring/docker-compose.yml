@@ -60,7 +60,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${grafana_admin}         # Admin username from .env
       - GF_SECURITY_ADMIN_PASSWORD=${grafana_password}  # Admin password from .env
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel      # Example plugin
+      - GF_PLUGINS_PREINSTALL=grafana-piechart-panel      # Example plugin
     volumes:
       - grafana_data:/var/lib/grafana                   # Persist dashboards & settings
     networks:

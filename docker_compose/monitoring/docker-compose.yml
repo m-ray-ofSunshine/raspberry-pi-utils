@@ -10,7 +10,7 @@ services:
     container_name: prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"    # Prometheus web UI
+      - "9091:9090"    # Prometheus web UI
     volumes:
       - prometheus_data:/prometheus                # Persistent storage for metrics
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro  # Config file for scrape targets
